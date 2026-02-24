@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Run GRPO training with TRL
+# Run on GPU server (2x RTX 4090)
+
+set -euo pipefail
+
+source .venv/bin/activate
+
+MODEL="${1:-Qwen/Qwen2.5-VL-7B-Instruct}"
+SFT_CHECKPOINT="${2:-checkpoints/sft}"
+
+echo "=== GRPO Training ==="
+echo "Model: $MODEL"
+echo "SFT checkpoint: $SFT_CHECKPOINT"
+
+# Check if SFT checkpoint exists
+if [ ! -d "$SFT_CHECKPOINT" ]; then
+    echo "WARNING: SFT checkpoint not found at $SFT_CHECKPOINT"
+    echo "Training from base model instead."
+    SFT_ARG=""
+else
+    SFT_ARG="--sft-checkpoint $SFT_CHECKPOINT"
+fi
+
+# GRPO with TRL
+accelerate launch \
+    --num_processes 2 \
+    --mixed_precision bf16 \
+    -m src.training.grpo \
+    --model "$MODEL" \
+    --data-path data/processed/trl/geoqa \
+    --output-dir checkpoints/grpo \
+    $SFT_ARG \
+    --epochs 1 \
+    --batch-size 1 \
+    --grad-accum 4 \
+    --lr 1e-6 \
+    --lora-r 16 \
+    --num-generations 4 \
+    --max-completion-length 1024 \
+    --max-prompt-length 512 \
+    --beta 0.01 \
+    --temperature 1.0
+
+echo ""
+echo "=== GRPO training complete ==="
+echo "Checkpoint: checkpoints/grpo/"
+
+# Evaluate GRPO model
+echo ""
+echo "--- Evaluating GRPO model ---"
+python -m src.eval.baseline \
+    --model "$MODEL" \
+    --lora-path checkpoints/grpo \
+    --dataset data/processed/trl/geoqa \
+    --output results/grpo_eval.json
