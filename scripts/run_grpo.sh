@@ -22,10 +22,9 @@ else
     SFT_ARG="--sft-checkpoint $SFT_CHECKPOINT"
 fi
 
-# GRPO with TRL
+# GRPO with TRL + DeepSpeed
 accelerate launch \
-    --num_processes 2 \
-    --mixed_precision bf16 \
+    --config_file configs/accelerate_2x4090.yaml \
     -m src.training.grpo \
     --model "$MODEL" \
     --data-path data/processed/trl/geoqa \

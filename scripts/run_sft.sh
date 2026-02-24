@@ -11,10 +11,9 @@ MODEL="${1:-Qwen/Qwen2.5-VL-7B-Instruct}"
 echo "=== SFT Warm-up Training ==="
 echo "Model: $MODEL"
 
-# Use accelerate for multi-GPU
+# Use accelerate for multi-GPU with DeepSpeed
 accelerate launch \
-    --num_processes 2 \
-    --mixed_precision bf16 \
+    --config_file configs/accelerate_2x4090.yaml \
     -m src.training.sft \
     --model "$MODEL" \
     --data-path data/processed/trl/geoqa \
