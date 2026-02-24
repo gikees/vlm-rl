@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data (downloaded separately on GPU server)
+data/raw/
+data/processed/
+*.parquet
+*.arrow
+
+# Model checkpoints
+checkpoints/
+outputs/
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Logs
+wandb/
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.zed/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key
+CLAUDE.md
