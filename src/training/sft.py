@@ -5,6 +5,7 @@ before GRPO reinforcement learning.
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import torch
@@ -49,7 +50,7 @@ def build_sft_dataset(data_path: str, processor: AutoProcessor, max_samples: int
         )
 
         # Append assistant response to the messages
-        messages = list(prompt) + [{"role": "assistant", "content": target}]
+        messages = json.loads(prompt) + [{"role": "assistant", "content": target}]
 
         return {"messages": messages}
 

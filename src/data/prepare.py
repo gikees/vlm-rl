@@ -35,12 +35,14 @@ def prepare_geoqa(raw_dir: Path, output_dir: Path):
     # TRL format
     trl_records = []
     for i, row in enumerate(ds):
-        question = row.get("problem", row.get("question", ""))
+        raw_question = row.get("problem", row.get("question", ""))
+        question = raw_question
         if "<image>" not in question:
             question = "<image>\n" + question
 
         trl_records.append({
             "prompt": json.dumps(format_prompt_for_chat(question)),
+            "question": raw_question,
             "solution": str(row.get("solution", row.get("answer", ""))),
             "image": row.get("image"),
             "data_source": "geoqa",
@@ -95,12 +97,14 @@ def prepare_clevr(raw_dir: Path, output_dir: Path, max_samples: int = 10000):
 
     trl_records = []
     for i, row in enumerate(ds):
-        question = row.get("problem", row.get("question", ""))
+        raw_question = row.get("problem", row.get("question", ""))
+        question = raw_question
         if "<image>" not in question:
             question = "<image>\n" + question
 
         trl_records.append({
             "prompt": json.dumps(format_prompt_for_chat(question)),
+            "question": raw_question,
             "solution": str(row.get("solution", row.get("answer", row.get("count", "")))),
             "image": row.get("image"),
             "data_source": "clevr",
@@ -132,7 +136,8 @@ def prepare_multimodal_r1(raw_dir: Path, output_dir: Path):
 
     trl_records = []
     for i, row in enumerate(ds):
-        question = row.get("problem", row.get("original_question", ""))
+        raw_question = row.get("problem", row.get("original_question", ""))
+        question = raw_question
         if "<image>" not in question:
             question = "<image>\n" + question
 
@@ -141,6 +146,7 @@ def prepare_multimodal_r1(raw_dir: Path, output_dir: Path):
 
         trl_records.append({
             "prompt": json.dumps(format_prompt_for_chat(question)),
+            "question": raw_question,
             "solution": answer,
             "image": row.get("image"),
             "data_source": "multimodal-r1-8k",

@@ -5,6 +5,7 @@ This is the TRL-based implementation (fallback/alternative to EasyR1).
 """
 
 import argparse
+import json
 import os
 
 import torch
@@ -26,6 +27,9 @@ def load_grpo_dataset(data_path: str, max_samples: int | None = None):
     ds = load_from_disk(data_path)
     if isinstance(ds, dict):
         ds = ds["train"]
+
+    # Deserialize prompt from JSON string to message list
+    ds = ds.map(lambda x: {"prompt": json.loads(x["prompt"])})
 
     if max_samples and len(ds) > max_samples:
         ds = ds.shuffle(seed=42).select(range(max_samples))
