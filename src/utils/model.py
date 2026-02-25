@@ -23,7 +23,7 @@ def load_model_and_processor(
     lora_config: dict | None = None,
     torch_dtype: torch.dtype = torch.bfloat16,
     device_map: str = "auto",
-    attn_implementation: str = "flash_attention_2",
+    attn_implementation: str = "sdpa",
 ):
     """Load Qwen2.5-VL model with optional LoRA.
 
@@ -33,7 +33,7 @@ def load_model_and_processor(
         lora_config: LoRA configuration dict (uses defaults if None)
         torch_dtype: model precision
         device_map: device placement strategy
-        attn_implementation: attention implementation (flash_attention_2 recommended)
+        attn_implementation: attention implementation (sdpa or flash_attention_2)
 
     Returns:
         (model, processor) tuple

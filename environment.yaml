@@ -18,7 +18,6 @@ dependencies:
       - datasets>=3.0.0
       - trl
       - vllm
-      - flash-attn --no-build-isolation
       - qwen-vl-utils
       - wandb
       - Pillow

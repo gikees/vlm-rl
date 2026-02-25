@@ -58,14 +58,14 @@ def train_dpo(
         from peft import PeftModel
         base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_name, torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2", trust_remote_code=True,
+            attn_implementation="sdpa", trust_remote_code=True,
         )
         model = PeftModel.from_pretrained(base_model, sft_checkpoint)
         model = model.merge_and_unload()
     else:
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_name, torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2", trust_remote_code=True,
+            attn_implementation="sdpa", trust_remote_code=True,
         )
 
     peft_config = LoraConfig(

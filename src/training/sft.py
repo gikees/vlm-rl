@@ -76,7 +76,7 @@ def train_sft(
         model_name,
         torch_dtype=torch.bfloat16,
         device_map="auto",
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",
         trust_remote_code=True,
     )
 

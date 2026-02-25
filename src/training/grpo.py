@@ -124,7 +124,7 @@ def train_grpo(
         base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            attn_implementation="sdpa",
             trust_remote_code=True,
         )
         model = PeftModel.from_pretrained(base_model, sft_checkpoint)
