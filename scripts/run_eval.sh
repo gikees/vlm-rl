@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source .venv/bin/activate
+source ~/miniconda3/bin/activate vlm-rl
 
 MODEL="${1:-Qwen/Qwen2.5-VL-7B-Instruct}"
 MAX_SAMPLES="${2:-}"

@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source .venv/bin/activate 2>/dev/null || true
+source ~/miniconda3/bin/activate vlm-rl 2>/dev/null || true
 
 MODEL="${1:-Qwen/Qwen2.5-VL-7B-Instruct}"
 

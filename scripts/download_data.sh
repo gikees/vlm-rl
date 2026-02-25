@@ -6,8 +6,8 @@ set -euo pipefail
 
 echo "=== Downloading Datasets ==="
 
-# Activate venv
-source .venv/bin/activate
+# Activate conda env
+source ~/miniconda3/bin/activate vlm-rl
 
 # Download training datasets
 echo "Downloading training datasets..."

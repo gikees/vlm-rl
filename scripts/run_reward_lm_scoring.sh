@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-source .venv/bin/activate
+source ~/miniconda3/bin/activate vlm-rl
 
 RESULTS_FILE="${1:-results/grpo_eval.json}"
 MAX_SAMPLES="${2:-50}"
