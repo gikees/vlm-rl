@@ -8,6 +8,7 @@ TRL GRPOTrainer expects datasets with:
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -39,7 +40,7 @@ def prepare_geoqa(raw_dir: Path, output_dir: Path):
             question = "<image>\n" + question
 
         trl_records.append({
-            "prompt": format_prompt_for_chat(question),
+            "prompt": json.dumps(format_prompt_for_chat(question)),
             "solution": str(row.get("solution", row.get("answer", ""))),
             "image": row.get("image"),
             "data_source": "geoqa",
@@ -62,10 +63,10 @@ def prepare_geoqa(raw_dir: Path, output_dir: Path):
 
         verl_records.append({
             "data_source": "geoqa",
-            "prompt": format_prompt_for_chat(question),
+            "prompt": json.dumps(format_prompt_for_chat(question)),
             "ability": "geometry",
-            "reward_model": {"ground_truth": str(row.get("solution", row.get("answer", "")))},
-            "extra_info": {"split": "train", "index": i},
+            "reward_model": json.dumps({"ground_truth": str(row.get("solution", row.get("answer", "")))}),
+            "extra_info": json.dumps({"split": "train", "index": i}),
         })
 
     verl_path = output_dir / "verl" / "geoqa_train.parquet"
@@ -99,7 +100,7 @@ def prepare_clevr(raw_dir: Path, output_dir: Path, max_samples: int = 10000):
             question = "<image>\n" + question
 
         trl_records.append({
-            "prompt": format_prompt_for_chat(question),
+            "prompt": json.dumps(format_prompt_for_chat(question)),
             "solution": str(row.get("solution", row.get("answer", row.get("count", "")))),
             "image": row.get("image"),
             "data_source": "clevr",
@@ -139,7 +140,7 @@ def prepare_multimodal_r1(raw_dir: Path, output_dir: Path):
         answer = str(row.get("original_answer", row.get("solution", "")))
 
         trl_records.append({
-            "prompt": format_prompt_for_chat(question),
+            "prompt": json.dumps(format_prompt_for_chat(question)),
             "solution": answer,
             "image": row.get("image"),
             "data_source": "multimodal-r1-8k",
@@ -183,10 +184,10 @@ def prepare_geometry3k(raw_dir: Path, output_dir: Path):
 
             verl_records.append({
                 "data_source": "geometry3k",
-                "prompt": format_prompt_for_chat(question),
+                "prompt": json.dumps(format_prompt_for_chat(question)),
                 "ability": "geometry",
-                "reward_model": {"ground_truth": str(row.get("answer", ""))},
-                "extra_info": {"split": split_name, "index": i},
+                "reward_model": json.dumps({"ground_truth": str(row.get("answer", ""))}),
+                "extra_info": json.dumps({"split": split_name, "index": i}),
             })
 
         verl_path = output_dir / "verl" / f"geometry3k_{split_name}.parquet"
