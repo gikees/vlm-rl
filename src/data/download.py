@@ -8,12 +8,12 @@ from datasets import load_dataset
 
 DATASETS = {
     # Training datasets
-    "geoqa": "AI-ModelScope/GEOQA_R1V_Train_8K",
-    "clevr": "lmms-lab/CLEVR-70k-Counting",
+    "geoqa": "leonardPKU/GEOQA_R1V_Train_8K",
+    "clevr": "MMInstruction/Clevr_CoGenT_TrainA_70K_Complex",
     "multimodal-r1-8k": "lmms-lab/multimodal-open-r1-8k-verified",
     # Eval datasets
-    "mathvista": "AI-ModelScope/MathVista",
-    "mathverse": "AI-ModelScope/MathVerse",
+    "mathvista": "AI4Math/MathVista",
+    "mathverse": "AI4Math/MathVerse",
     "hallusionbench": "lmms-lab/HallusionBench",
     # EasyR1 pre-formatted
     "geometry3k": "hiyouga/geometry3k",
