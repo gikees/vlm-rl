@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source .venv/bin/activate
+source .venv/bin/activate 2>/dev/null || true
 
 MODEL="${1:-Qwen/Qwen2.5-VL-7B-Instruct}"
 
@@ -19,7 +19,7 @@ print(f'CUDA available: {torch.cuda.is_available()}')
 print(f'GPU count: {torch.cuda.device_count()}')
 for i in range(torch.cuda.device_count()):
     print(f'  GPU {i}: {torch.cuda.get_device_name(i)}')
-    print(f'    Memory: {torch.cuda.get_device_properties(i).total_mem / 1e9:.1f} GB')
+    print(f'    Memory: {torch.cuda.get_device_properties(i).total_memory / 1e9:.1f} GB')
 
 print()
 print('Loading processor...')
