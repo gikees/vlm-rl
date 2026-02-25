@@ -8,15 +8,15 @@ from datasets import load_dataset
 
 DATASETS = {
     # Training datasets
-    "geoqa": "leonardPKU/GEOQA_R1V_Train_8K",
-    "clevr": "MMInstruction/Clevr_CoGenT_TrainA_70K_Complex",
-    "multimodal-r1-8k": "lmms-lab/multimodal-open-r1-8k-verified",
+    "geoqa": {"id": "leonardPKU/GEOQA_R1V_Train_8K"},
+    "clevr": {"id": "MMInstruction/Clevr_CoGenT_TrainA_70K_Complex"},
+    "multimodal-r1-8k": {"id": "lmms-lab/multimodal-open-r1-8k-verified"},
     # Eval datasets
-    "mathvista": "AI4Math/MathVista",
-    "mathverse": "AI4Math/MathVerse",
-    "hallusionbench": "lmms-lab/HallusionBench",
+    "mathvista": {"id": "AI4Math/MathVista"},
+    "mathverse": {"id": "AI4Math/MathVerse", "config": "testmini"},
+    "hallusionbench": {"id": "lmms-lab/HallusionBench"},
     # EasyR1 pre-formatted
-    "geometry3k": "hiyouga/geometry3k",
+    "geometry3k": {"id": "hiyouga/geometry3k"},
 }
 
 
@@ -25,10 +25,12 @@ def download_dataset(name: str, output_dir: Path, split: str | None = None):
     if name not in DATASETS:
         raise ValueError(f"Unknown dataset: {name}. Choose from: {list(DATASETS.keys())}")
 
-    hf_id = DATASETS[name]
+    info = DATASETS[name]
+    hf_id = info["id"]
+    config = info.get("config")
     print(f"Downloading {name} from {hf_id}...")
 
-    ds = load_dataset(hf_id, split=split)
+    ds = load_dataset(hf_id, name=config, split=split)
     save_path = output_dir / name
     ds.save_to_disk(str(save_path))
     print(f"Saved {name} to {save_path}")
