@@ -1,0 +1,32 @@
+name: vlm-rl
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch=2.5.*
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.4
+  - pip
+  - pip:
+      - transformers>=4.45.0
+      - peft>=0.13.0
+      - accelerate>=0.34.0
+      - datasets>=3.0.0
+      - trl
+      - vllm
+      - flash-attn --no-build-isolation
+      - qwen-vl-utils
+      - wandb
+      - Pillow
+      - pandas
+      - pyarrow
+      - tqdm
+      - anthropic
+      - openai
+      - matplotlib
+      - jupyter
+      - ruff
