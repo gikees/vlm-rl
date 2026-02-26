@@ -14,7 +14,13 @@ from pathlib import Path
 import pandas as pd
 from datasets import Dataset, load_from_disk
 
-from src.data.formatting import format_prompt_for_chat
+from src.data.formatting import extract_answer, format_prompt_for_chat
+
+
+def clean_solution(solution: str) -> str:
+    """Strip <answer> tags from ground truth if present."""
+    extracted = extract_answer(solution)
+    return extracted if extracted is not None else solution.strip()
 
 
 # --- GeoQA ---
@@ -43,7 +49,7 @@ def prepare_geoqa(raw_dir: Path, output_dir: Path):
         trl_records.append({
             "prompt": json.dumps(format_prompt_for_chat(question)),
             "question": raw_question,
-            "solution": str(row.get("solution", row.get("answer", ""))),
+            "solution": clean_solution(str(row.get("solution", row.get("answer", "")))),
             "image": row.get("image"),
             "data_source": "geoqa",
             "ability": "geometry",
@@ -67,7 +73,7 @@ def prepare_geoqa(raw_dir: Path, output_dir: Path):
             "data_source": "geoqa",
             "prompt": json.dumps(format_prompt_for_chat(question)),
             "ability": "geometry",
-            "reward_model": json.dumps({"ground_truth": str(row.get("solution", row.get("answer", "")))}),
+            "reward_model": json.dumps({"ground_truth": clean_solution(str(row.get("solution", row.get("answer", ""))))}),
             "extra_info": json.dumps({"split": "train", "index": i}),
         })
 
@@ -105,7 +111,7 @@ def prepare_clevr(raw_dir: Path, output_dir: Path, max_samples: int = 10000):
         trl_records.append({
             "prompt": json.dumps(format_prompt_for_chat(question)),
             "question": raw_question,
-            "solution": str(row.get("solution", row.get("answer", row.get("count", "")))),
+            "solution": clean_solution(str(row.get("solution", row.get("answer", row.get("count", ""))))),
             "image": row.get("image"),
             "data_source": "clevr",
             "ability": "counting",
@@ -147,7 +153,7 @@ def prepare_multimodal_r1(raw_dir: Path, output_dir: Path):
         trl_records.append({
             "prompt": json.dumps(format_prompt_for_chat(question)),
             "question": raw_question,
-            "solution": answer,
+            "solution": clean_solution(answer),
             "image": row.get("image"),
             "data_source": "multimodal-r1-8k",
             "ability": "math",
@@ -192,7 +198,7 @@ def prepare_geometry3k(raw_dir: Path, output_dir: Path):
                 "data_source": "geometry3k",
                 "prompt": json.dumps(format_prompt_for_chat(question)),
                 "ability": "geometry",
-                "reward_model": json.dumps({"ground_truth": str(row.get("answer", ""))}),
+                "reward_model": json.dumps({"ground_truth": clean_solution(str(row.get("answer", "")))}),
                 "extra_info": json.dumps({"split": split_name, "index": i}),
             })
 
