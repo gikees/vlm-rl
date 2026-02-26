@@ -90,21 +90,45 @@ def normalize_answer(answer: str) -> str:
     return answer
 
 
+def _extract_number(text: str) -> float | None:
+    """Try to extract a numeric value from text."""
+    # First try the whole string
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    # Find last number in the string (most likely the answer)
+    matches = re.findall(r"-?\d+\.?\d*", text)
+    if matches:
+        try:
+            return float(matches[-1])
+        except ValueError:
+            pass
+    return None
+
+
 def answers_match(predicted: str, ground_truth: str, tolerance: float = 1e-4) -> bool:
     """Check if predicted answer matches ground truth.
 
-    Tries numeric comparison first, then falls back to string matching.
+    Tries exact numeric, then extracted numeric, then string comparison.
     """
     pred_norm = normalize_answer(predicted)
     gt_norm = normalize_answer(ground_truth)
 
-    # Try numeric comparison
+    # Try direct numeric comparison
     try:
         pred_val = float(pred_norm)
         gt_val = float(gt_norm)
         return abs(pred_val - gt_val) < tolerance
     except ValueError:
         pass
+
+    # Try extracting numbers from verbose answers
+    pred_num = _extract_number(pred_norm)
+    gt_num = _extract_number(gt_norm)
+    if pred_num is not None and gt_num is not None:
+        if abs(pred_num - gt_num) < tolerance:
+            return True
 
     # String comparison
     return pred_norm == gt_norm
