@@ -28,8 +28,19 @@ def load_grpo_dataset(data_path: str, max_samples: int | None = None):
     if isinstance(ds, dict):
         ds = ds["train"]
 
-    # Deserialize prompt from JSON string to message list
-    ds = ds.map(lambda x: {"prompt": json.loads(x["prompt"])})
+    # Deserialize prompt and flatten multimodal content to plain text.
+    # GRPOTrainer's prepare_multimodal_messages() handles image injection
+    # from the dataset's "image" column, so we only need text here.
+    # All-string content avoids Arrow mixed-type serialization errors.
+    def simplify_prompt(example):
+        messages = json.loads(example["prompt"])
+        for msg in messages:
+            if isinstance(msg["content"], list):
+                text_parts = [item["text"] for item in msg["content"] if item.get("type") == "text"]
+                msg["content"] = " ".join(text_parts).strip()
+        return {"prompt": messages}
+
+    ds = ds.map(simplify_prompt)
 
     if max_samples and len(ds) > max_samples:
         ds = ds.shuffle(seed=42).select(range(max_samples))
