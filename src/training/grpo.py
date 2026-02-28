@@ -110,6 +110,8 @@ def train_grpo(
         warmup_ratio=0.05,
         bf16=True,
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        model_init_kwargs={"device_map": "auto", "torch_dtype": "bfloat16", "attn_implementation": "sdpa"},
         # GRPO-specific
         num_generations=num_generations,
         max_completion_length=max_completion_length,
@@ -133,10 +135,12 @@ def train_grpo(
 
     if sft_checkpoint:
         # Load base model + merge SFT LoRA, then apply fresh LoRA for GRPO
+        # Use device_map="auto" to distribute across GPUs (avoids DataParallel)
         from peft import PeftModel
         base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
+            device_map="auto",
             attn_implementation="sdpa",
             trust_remote_code=True,
         )
