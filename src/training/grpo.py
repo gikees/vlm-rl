@@ -60,7 +60,6 @@ def train_grpo(
     lora_r: int = 16,
     num_generations: int = 4,
     max_completion_length: int = 1024,
-    max_prompt_length: int = 512,
     beta: float = 0.01,
     temperature: float = 1.0,
     max_samples: int | None = None,
@@ -81,7 +80,6 @@ def train_grpo(
         lora_r: LoRA rank
         num_generations: K completions per prompt for GRPO
         max_completion_length: max tokens in generated completion
-        max_prompt_length: max tokens in prompt
         beta: KL divergence coefficient
         temperature: sampling temperature for generation
         max_samples: limit training samples (for debugging)
@@ -115,9 +113,9 @@ def train_grpo(
         # GRPO-specific
         num_generations=num_generations,
         max_completion_length=max_completion_length,
-        max_prompt_length=max_prompt_length,
         beta=beta,
         temperature=temperature,
+        loss_type="grpo",
         # Logging & saving
         logging_steps=5,
         save_strategy="steps",
@@ -179,7 +177,6 @@ def main():
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--num-generations", type=int, default=4)
     parser.add_argument("--max-completion-length", type=int, default=1024)
-    parser.add_argument("--max-prompt-length", type=int, default=512)
     parser.add_argument("--beta", type=float, default=0.01)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--max-samples", type=int, default=None)
@@ -199,7 +196,6 @@ def main():
         lora_r=args.lora_r,
         num_generations=args.num_generations,
         max_completion_length=args.max_completion_length,
-        max_prompt_length=args.max_prompt_length,
         beta=args.beta,
         temperature=args.temperature,
         max_samples=args.max_samples,
