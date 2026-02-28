@@ -33,14 +33,21 @@ def _score_format(response: str) -> float:
 
     Returns:
         0.0: no structure at all
-        0.25: has one of <think> or <answer> but not both
-        0.5: has both <think>...</think> and <answer>...</answer>
+        0.1: has one of <think> or <answer> but not both
+        0.3: both tags, <20 words of thinking
+        0.4: both tags, 20-49 words of thinking
+        0.5: both tags, 50+ words of thinking
     """
-    has_think = bool(re.search(r"<think>.*?</think>", response, re.DOTALL))
+    think_match = re.search(r"<think>(.*?)</think>", response, re.DOTALL)
     has_answer = bool(re.search(r"<answer>.*?</answer>", response, re.DOTALL))
 
-    if has_think and has_answer:
-        return 0.5
-    elif has_think or has_answer:
-        return 0.25
+    if think_match and has_answer:
+        word_count = len(think_match.group(1).split())
+        if word_count >= 50:
+            return 0.5
+        if word_count >= 20:
+            return 0.4
+        return 0.3
+    elif think_match or has_answer:
+        return 0.1
     return 0.0

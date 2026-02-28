@@ -58,10 +58,10 @@ def train_grpo(
     gradient_accumulation_steps: int = 4,
     learning_rate: float = 1e-6,
     lora_r: int = 16,
-    num_generations: int = 4,
+    num_generations: int = 8,
     max_completion_length: int = 1024,
-    beta: float = 0.01,
-    temperature: float = 1.0,
+    beta: float = 0.0,
+    temperature: float = 1.3,
     max_samples: int | None = None,
     max_pixels: int = 401408,
     use_vllm: bool = False,
@@ -117,7 +117,7 @@ def train_grpo(
         max_completion_length=max_completion_length,
         beta=beta,
         temperature=temperature,
-        loss_type="grpo",
+        loss_type="dapo",
         # Logging & saving
         logging_steps=5,
         save_strategy="steps",
@@ -179,10 +179,10 @@ def main():
     parser.add_argument("--grad-accum", type=int, default=4)
     parser.add_argument("--lr", type=float, default=1e-6)
     parser.add_argument("--lora-r", type=int, default=16)
-    parser.add_argument("--num-generations", type=int, default=4)
+    parser.add_argument("--num-generations", type=int, default=8)
     parser.add_argument("--max-completion-length", type=int, default=1024)
-    parser.add_argument("--beta", type=float, default=0.01)
-    parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument("--beta", type=float, default=0.0)
+    parser.add_argument("--temperature", type=float, default=1.3)
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--max-pixels", type=int, default=401408)
     parser.add_argument("--use-vllm", action="store_true")

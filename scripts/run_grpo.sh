@@ -35,11 +35,10 @@ accelerate launch \
     --grad-accum 4 \
     --lr 1e-6 \
     --lora-r 16 \
-    --num-generations 4 \
+    --num-generations 8 \
     --max-completion-length 1024 \
-    --max-prompt-length 512 \
-    --beta 0.01 \
-    --temperature 1.0
+    --beta 0.0 \
+    --temperature 1.3
 
 echo ""
 echo "=== GRPO training complete ==="
