@@ -114,6 +114,7 @@ def train_grpo(
         model_init_kwargs={"device_map": "auto", "torch_dtype": "bfloat16", "attn_implementation": "sdpa"},
         # GRPO-specific
         num_generations=num_generations,
+        generation_batch_size=num_generations,
         max_completion_length=max_completion_length,
         beta=beta,
         temperature=temperature,
