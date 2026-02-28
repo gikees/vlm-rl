@@ -10,52 +10,75 @@ from pathlib import Path
 
 import torch
 from datasets import load_from_disk
-from peft import LoraConfig
-from transformers import (
-    AutoProcessor,
-    Qwen2_5_VLForConditionalGeneration,
-    TrainingArguments,
-    Trainer,
-)
-from trl import SFTConfig, SFTTrainer
-
-from src.data.formatting import SYSTEM_PROMPT, COT_PROMPT_SUFFIX
+from peft import LoraConfig, get_peft_model
+from qwen_vl_utils import process_vision_info
+from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration, Trainer, TrainingArguments
 
 
-def build_sft_dataset(data_path: str, processor: AutoProcessor, max_samples: int | None = None):
-    """Load and format dataset for SFT.
+class MultimodalSFTCollator:
+    """Data collator for multimodal SFT.
 
-    Each sample needs: messages (chat format) and images.
-    For SFT, we include both the prompt and a target response
-    with the correct answer in <think>/<answer> format.
+    Handles JSON prompt deserialization, image injection,
+    chat template application, and tokenization per batch.
+    Avoids Arrow schema issues from mixed content types.
     """
-    ds = load_from_disk(data_path)
-    if isinstance(ds, dict):
-        ds = ds["train"]
 
-    if max_samples and len(ds) > max_samples:
-        ds = ds.shuffle(seed=42).select(range(max_samples))
+    def __init__(self, processor, max_seq_length=2048):
+        self.processor = processor
+        self.max_seq_length = max_seq_length
 
-    def format_example(example):
-        """Format a single example for SFT training."""
-        prompt = example["prompt"]
-        solution = example["solution"]
+    def __call__(self, examples):
+        batch_texts = []
+        all_images = []
 
-        # Build target response in the expected format
-        target = (
-            f"<think>\nLet me analyze this problem step by step.\n"
-            f"Looking at the image, I need to find the answer to this question.\n"
-            f"After careful analysis, the answer is {solution}.\n"
-            f"</think>\n<answer>{solution}</answer>"
+        for example in examples:
+            messages = json.loads(example["prompt"])
+            solution = example["solution"]
+            image = example.get("image")
+
+            # Inject actual image into message content
+            if image is not None:
+                for msg in messages:
+                    if isinstance(msg["content"], list):
+                        for item in msg["content"]:
+                            if item.get("type") == "image" and "image" not in item:
+                                item["image"] = image
+
+            # Build target response in <think>/<answer> format
+            target = (
+                f"<think>\nLet me analyze this problem step by step.\n"
+                f"Looking at the image, I need to find the answer to this question.\n"
+                f"After careful analysis, the answer is {solution}.\n"
+                f"</think>\n<answer>{solution}</answer>"
+            )
+
+            full_messages = messages + [{"role": "assistant", "content": target}]
+
+            # Apply chat template
+            text = self.processor.apply_chat_template(full_messages, tokenize=False)
+            batch_texts.append(text)
+
+            # Extract image inputs via qwen_vl_utils
+            image_inputs, _ = process_vision_info(full_messages)
+            if image_inputs:
+                all_images.extend(image_inputs)
+
+        # Tokenize
+        inputs = self.processor(
+            text=batch_texts,
+            images=all_images if all_images else None,
+            padding=True,
+            truncation=True,
+            max_length=self.max_seq_length,
+            return_tensors="pt",
         )
 
-        # Append assistant response to the messages
-        messages = json.loads(prompt) + [{"role": "assistant", "content": target}]
+        # Labels = input_ids, mask padding tokens
+        labels = inputs.input_ids.clone()
+        labels[inputs.attention_mask == 0] = -100
+        inputs["labels"] = labels
 
-        return {"messages": messages}
-
-    ds = ds.map(format_example)
-    return ds
+        return inputs
 
 
 def train_sft(
@@ -81,7 +104,7 @@ def train_sft(
         trust_remote_code=True,
     )
 
-    # LoRA config
+    # LoRA
     peft_config = LoraConfig(
         r=lora_r,
         lora_alpha=lora_r * 2,
@@ -89,13 +112,19 @@ def train_sft(
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         task_type="CAUSAL_LM",
     )
+    model = get_peft_model(model, peft_config)
+    model.print_trainable_parameters()
 
-    # Dataset
-    dataset = build_sft_dataset(data_path, processor, max_samples=max_samples)
-    print(f"Training on {len(dataset)} samples")
+    # Dataset (no preprocessing - collator handles formatting)
+    ds = load_from_disk(data_path)
+    if isinstance(ds, dict):
+        ds = ds["train"]
+    if max_samples and len(ds) > max_samples:
+        ds = ds.shuffle(seed=42).select(range(max_samples))
 
-    # Training config
-    training_args = SFTConfig(
+    print(f"Training on {len(ds)} samples")
+
+    training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_epochs,
         per_device_train_batch_size=batch_size,
@@ -105,22 +134,22 @@ def train_sft(
         warmup_ratio=0.1,
         bf16=True,
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=10,
         save_strategy="epoch",
         save_total_limit=3,
         remove_unused_columns=False,
-        max_seq_length=max_seq_length,
-        dataset_kwargs={"skip_prepare_dataset": True},
         report_to="wandb",
         run_name="vlm-rl-sft",
     )
 
-    trainer = SFTTrainer(
+    collator = MultimodalSFTCollator(processor, max_seq_length)
+
+    trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=dataset,
-        peft_config=peft_config,
-        processing_class=processor,
+        train_dataset=ds,
+        data_collator=collator,
     )
 
     trainer.train()
