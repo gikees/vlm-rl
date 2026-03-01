@@ -61,7 +61,7 @@ def train_grpo(
     num_generations: int = 8,
     max_completion_length: int = 1024,
     beta: float = 0.0,
-    temperature: float = 2.0,
+    temperature: float = 1.5,
     max_samples: int | None = None,
     max_pixels: int = 401408,
     use_vllm: bool = False,
@@ -183,7 +183,7 @@ def main():
     parser.add_argument("--num-generations", type=int, default=8)
     parser.add_argument("--max-completion-length", type=int, default=1024)
     parser.add_argument("--beta", type=float, default=0.0)
-    parser.add_argument("--temperature", type=float, default=2.0)
+    parser.add_argument("--temperature", type=float, default=1.5)
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--max-pixels", type=int, default=401408)
     parser.add_argument("--use-vllm", action="store_true")
