@@ -38,7 +38,7 @@ accelerate launch \
     --num-generations 8 \
     --max-completion-length 1024 \
     --beta 0.0 \
-    --temperature 1.3
+    --temperature 2.0
 
 echo ""
 echo "=== GRPO training complete ==="
