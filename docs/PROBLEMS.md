@@ -28,3 +28,13 @@ Root cause: the SFT model is too deterministic. Entropy dropped to 0.0003-0.05 (
 1. **DAPO loss + diversity**: switched `loss_type` from `"grpo"` to `"dapo"` (filters zero-variance groups, no length bias), dropped KL penalty (`beta=0.0`), raised `temperature` to 1.3, doubled `num_generations` to 8
 2. **Partial credit outcome reward**: replaced binary 0/1 with graduated scoring based on numerical proximity (1.0 exact, 0.8 within 5%, 0.4 within 15%, 0.2 within 30%, 0.0 otherwise)
 3. **Reasoning depth format reward**: added word count dimension to thinking block — 5 reward levels (0.0/0.1/0.3/0.4/0.5) instead of 3, creating variance among well-formatted outputs
+
+Temperature tuning: 1.3 collapsed back to deterministic after ~3K steps, 2.0 destroyed coherence (entropy 10+, all gibberish). 1.5 is the sweet spot.
+
+## 4. Qwen2.5-VL image token mismatch crash
+
+**Found during**: Phase 4 GRPO full training run
+
+Certain images cause `ValueError: Image features and image tokens do not match` in Qwen2.5-VL's forward pass. This crashes the entire training run.
+
+**Fix**: Added `RobustGRPOTrainer` subclass that catches the ValueError in `training_step` and returns zero loss for the affected batch, allowing training to continue.

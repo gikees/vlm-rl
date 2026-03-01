@@ -7,12 +7,31 @@ This is the TRL-based implementation (fallback/alternative to EasyR1).
 import argparse
 import json
 import os
+import warnings
 
 import torch
 from datasets import load_from_disk
 from peft import LoraConfig
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from trl import GRPOConfig, GRPOTrainer
+
+
+class RobustGRPOTrainer(GRPOTrainer):
+    """GRPOTrainer that skips batches with image token mismatches.
+
+    Qwen2.5-VL occasionally produces a mismatch between image tokens and
+    pixel features for certain images, crashing the forward pass. This
+    subclass catches those errors and returns zero loss for the batch.
+    """
+
+    def training_step(self, model, inputs, num_items_in_batch):
+        try:
+            return super().training_step(model, inputs, num_items_in_batch)
+        except ValueError as e:
+            if "image features and image tokens do not match" in str(e).lower():
+                warnings.warn(f"Skipping batch due to image token mismatch: {e}")
+                return torch.tensor(0.0, device=self.accelerator.device, requires_grad=True)
+            raise
 
 from src.rewards.outcome import outcome_reward
 from src.rewards.format import format_reward
@@ -154,7 +173,7 @@ def train_grpo(
     # Reward functions — use both outcome and format
     reward_fns = [outcome_reward, format_reward]
 
-    trainer = GRPOTrainer(
+    trainer = RobustGRPOTrainer(
         model=model,
         args=training_args,
         reward_funcs=reward_fns,
