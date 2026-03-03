@@ -3,6 +3,7 @@
 Handles the <think>...</think><answer>...</answer> format used throughout training.
 """
 
+import math
 import re
 
 SYSTEM_PROMPT = (
@@ -76,28 +77,172 @@ def normalize_answer(answer: str) -> str:
     """Normalize an answer string for comparison.
 
     Handles common variations: extra whitespace, degree symbols,
-    trailing periods, percentage signs.
+    trailing periods, percentage signs, LaTeX delimiters, units.
     """
     answer = answer.strip().lower()
+    # Strip LaTeX delimiters: \( \) \[ \] $ $$
+    answer = re.sub(r"\\\(|\\\)|\\\[|\\\]", "", answer)
+    answer = re.sub(r"\$\$?", "", answer)
+    # Unwrap \text{...}, \mathrm{...}, \textbf{...}, \mathbf{...}
+    answer = re.sub(r"\\(?:text|mathrm|textbf|mathbf)\{([^}]*)\}", r"\1", answer)
+    # Strip LaTeX degree notation: ^\circ, \circ, ^{\circ}
+    answer = re.sub(r"\^\{?\\circ\}?", "", answer)
+    answer = answer.replace("\\circ", "")
     # Remove trailing period
     answer = answer.rstrip(".")
     # Remove degree symbol
     answer = answer.replace("°", "")
     # Remove percentage sign
     answer = answer.rstrip("%")
+    # Strip trailing units (only after a number)
+    answer = re.sub(
+        r"(\d)\s*(?:meters|meter|centimeters|centimeter|inches|inch|feet|foot|"
+        r"miles|mile|kilometers|kilometer|degrees|degree|cm|mm|km|m|ft|in)\b\.?$",
+        r"\1", answer,
+    )
     # Normalize whitespace
     answer = " ".join(answer.split())
     return answer
 
 
-def _extract_number(text: str) -> float | None:
-    """Try to extract a numeric value from text."""
-    # First try the whole string
+def _eval_latex_expr(text: str) -> float | None:
+    """Recursively evaluate a LaTeX math expression to a float.
+
+    Handles \\frac{a}{b}, \\sqrt{a}, a\\sqrt{b}, \\pi, and plain numbers.
+    Returns None if the expression can't be evaluated.
+    """
+    text = text.strip()
+    if not text:
+        return None
+
+    # \pi
+    if text == "\\pi":
+        return math.pi
+
+    # Plain number
     try:
         return float(text)
     except ValueError:
         pass
-    # Find last number in the string (most likely the answer)
+
+    # \frac{numerator}{denominator}
+    m = re.match(r"\\frac\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}$", text)
+    if m:
+        num = _eval_latex_expr(m.group(1))
+        den = _eval_latex_expr(m.group(2))
+        if num is not None and den is not None and den != 0:
+            return num / den
+        return None
+
+    # \sqrt{expr}
+    m = re.match(r"\\sqrt\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}$", text)
+    if m:
+        val = _eval_latex_expr(m.group(1))
+        if val is not None and val >= 0:
+            return math.sqrt(val)
+        return None
+
+    # coefficient * \sqrt{expr}: e.g. 3\sqrt{2}, 3 \sqrt{2}
+    m = re.match(r"(-?\d+\.?\d*)\s*\\sqrt\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}$", text)
+    if m:
+        coeff = float(m.group(1))
+        val = _eval_latex_expr(m.group(2))
+        if val is not None and val >= 0:
+            return coeff * math.sqrt(val)
+        return None
+
+    # coefficient * \pi: e.g. 3\pi, 3 \pi
+    m = re.match(r"(-?\d+\.?\d*)\s*\\pi$", text)
+    if m:
+        return float(m.group(1)) * math.pi
+
+    # Plain fraction: a/b
+    m = re.match(r"(-?\d+\.?\d*)\s*/\s*(-?\d+\.?\d*)$", text)
+    if m:
+        den = float(m.group(2))
+        if den != 0:
+            return float(m.group(1)) / den
+        return None
+
+    return None
+
+
+def _eval_simple_latex(text: str) -> float | None:
+    """Try to evaluate a string as a LaTeX math expression.
+
+    Strips surrounding whitespace and LaTeX delimiters, then delegates
+    to _eval_latex_expr for recursive evaluation.
+    """
+    text = text.strip()
+    # Strip LaTeX delimiters
+    text = re.sub(r"^\\\(|\\\)$|^\\\[|\\\]$|^\$\$?|\$\$?$", "", text).strip()
+    return _eval_latex_expr(text)
+
+
+def _extract_from_equation(text: str) -> str | None:
+    """Extract the RHS from an equation like 'x = 48' or 'm∠BAC = 63'.
+
+    Returns the right-hand side as a string, or None if no equation found.
+    """
+    # Match: optional LHS (letters, symbols, spaces) = value
+    m = re.search(r"=\s*(.+)$", text)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def _extract_number(text: str) -> float | None:
+    """Try to extract a numeric value from text.
+
+    Extraction order:
+    1. Direct float()
+    2. LaTeX expression evaluation
+    3. Equation RHS extraction → then try float/latex on RHS
+    4. Scan for embedded LaTeX patterns in text
+    5. Last bare number regex (fallback)
+    """
+    # 1. Direct float
+    try:
+        return float(text)
+    except ValueError:
+        pass
+
+    # 2. LaTeX expression evaluation
+    val = _eval_simple_latex(text)
+    if val is not None:
+        return val
+
+    # 3. Equation RHS extraction
+    rhs = _extract_from_equation(text)
+    if rhs:
+        try:
+            return float(rhs)
+        except ValueError:
+            pass
+        val = _eval_simple_latex(rhs)
+        if val is not None:
+            return val
+
+    # 4. Scan for embedded LaTeX patterns: \frac{...}{...}, \sqrt{...}
+    m = re.search(
+        r"\\frac\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
+        text,
+    )
+    if m:
+        val = _eval_latex_expr(m.group(0))
+        if val is not None:
+            return val
+
+    m = re.search(
+        r"(?:(-?\d+\.?\d*)\s*)?\\sqrt\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
+        text,
+    )
+    if m:
+        val = _eval_latex_expr(m.group(0))
+        if val is not None:
+            return val
+
+    # 5. Last bare number regex (fallback)
     matches = re.findall(r"-?\d+\.?\d*", text)
     if matches:
         try:

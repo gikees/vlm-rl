@@ -38,3 +38,15 @@ Temperature tuning: 1.3 collapsed back to deterministic after ~3K steps, 2.0 des
 Certain images cause `ValueError: Image features and image tokens do not match` in Qwen2.5-VL's forward pass. This crashes the entire training run.
 
 **Fix**: Added `RobustGRPOTrainer` subclass that catches the ValueError in `training_step` and returns zero loss for the affected batch, allowing training to continue.
+
+## 5. LaTeX answer parsing failures inflate GRPO error rate
+
+**Found during**: Phase 4 GRPO eval comparison
+
+GRPO eval shows 40.6% accuracy vs 55.4% for SFT. But 250 of 293 "wrong" answers are parsing failures — the model produces correct answers wrapped in LaTeX or verbose text that the evaluator can't parse. Examples: `\(\frac{3\sqrt{2}}{2}\)`, `\( y = 48 \)`, `63^\circ`, `x = 11`.
+
+**Fix**: Enhanced answer matching in `formatting.py`:
+1. `normalize_answer` now strips LaTeX delimiters (`\(`, `\)`, `$`), unwraps `\text{}`/`\mathrm{}`, removes `^\circ` notation, and strips trailing units
+2. Added `_eval_simple_latex()` — regex-based evaluator for `\frac{a}{b}`, `\sqrt{a}`, `a\sqrt{b}`, `\pi`, and plain fractions (no sympy dependency)
+3. Added `_extract_from_equation()` — extracts RHS from equations like `x = 48` → `48`
+4. Enhanced `_extract_number` extraction order: direct float → LaTeX eval → equation RHS → embedded LaTeX scan → bare number fallback
