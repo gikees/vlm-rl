@@ -22,8 +22,11 @@ from src.data.formatting import (
 )
 
 
-def run_inference(model, processor, messages, image=None, max_new_tokens=1024):
-    """Run single inference with the model."""
+def run_inference(model, processor, messages, image=None, max_new_tokens=2048):
+    """Run single inference with the model.
+
+    Returns (response_text, was_truncated) tuple.
+    """
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
     if image is not None:
@@ -47,8 +50,9 @@ def run_inference(model, processor, messages, image=None, max_new_tokens=1024):
 
     # Decode only the generated tokens
     generated_ids = output_ids[:, inputs.input_ids.shape[1]:]
+    was_truncated = generated_ids.shape[1] >= max_new_tokens
     response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    return response
+    return response, was_truncated
 
 
 def evaluate_dataset(
@@ -57,7 +61,7 @@ def evaluate_dataset(
     dataset_path: str,
     use_cot: bool = True,
     max_samples: int | None = None,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 2048,
 ) -> dict:
     """Evaluate model on a dataset.
 
@@ -98,9 +102,12 @@ def evaluate_dataset(
 
         # Generate
         try:
-            response = run_inference(model, processor, messages, image, max_new_tokens)
+            response, was_truncated = run_inference(
+                model, processor, messages, image, max_new_tokens
+            )
         except Exception as e:
             response = f"ERROR: {e}"
+            was_truncated = False
 
         # Score
         predicted = extract_answer(response) if use_cot else response.strip()
@@ -117,9 +124,12 @@ def evaluate_dataset(
             "question": question[:200],
             "ground_truth": gt_answer,
             "predicted": predicted,
-            "response": response[:500],
+            "predicted_raw": extract_answer(response) if use_cot else response.strip(),
+            "response": response,
+            "response_length": len(response),
             "correct": is_correct,
             "format_ok": is_format_ok,
+            "was_truncated": was_truncated,
             "ability": row.get("ability", "unknown"),
         })
 
@@ -141,7 +151,7 @@ def main():
     parser.add_argument("--output", type=str, default="results/baseline.json")
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--no-cot", action="store_true", help="Disable chain-of-thought prompting")
-    parser.add_argument("--max-new-tokens", type=int, default=1024)
+    parser.add_argument("--max-new-tokens", type=int, default=2048)
     args = parser.parse_args()
 
     # Load model
@@ -177,6 +187,26 @@ def main():
     print(f"\nResults saved to {output_path}")
     print(f"Accuracy: {metrics['accuracy']:.2%} ({metrics['correct']}/{metrics['total']})")
     print(f"Format compliance: {metrics['format_compliance']:.2%}")
+
+    # Detailed diagnostic summary
+    res = metrics["results"]
+    n_correct = sum(1 for r in res if r["correct"])
+    n_wrong = sum(1 for r in res if not r["correct"] and r["predicted"])
+    n_no_answer = sum(1 for r in res if not r["correct"] and not r["predicted"])
+    n_truncated = sum(1 for r in res if r.get("was_truncated"))
+
+    correct_lens = [r["response_length"] for r in res if r["correct"]]
+    incorrect_lens = [r["response_length"] for r in res if not r["correct"]]
+
+    print(f"\n--- Diagnostic breakdown ---")
+    print(f"Correct:    {n_correct}")
+    print(f"Wrong:      {n_wrong}")
+    print(f"No answer:  {n_no_answer}")
+    print(f"Truncated:  {n_truncated}")
+    if correct_lens:
+        print(f"Avg response length (correct):   {sum(correct_lens)/len(correct_lens):.0f} chars")
+    if incorrect_lens:
+        print(f"Avg response length (incorrect): {sum(incorrect_lens)/len(incorrect_lens):.0f} chars")
 
 
 if __name__ == "__main__":

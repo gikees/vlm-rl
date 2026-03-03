@@ -95,11 +95,14 @@ def normalize_answer(answer: str) -> str:
     # Remove percentage sign
     answer = answer.rstrip("%")
     # Strip trailing units (only after a number)
+    # Long unit names: allow optional whitespace after digit
     answer = re.sub(
         r"(\d)\s*(?:meters|meter|centimeters|centimeter|inches|inch|feet|foot|"
-        r"miles|mile|kilometers|kilometer|degrees|degree|cm|mm|km|m|ft|in)\b\.?$",
+        r"miles|mile|kilometers|kilometer|degrees|degree|cm|mm|km)\b\.?$",
         r"\1", answer,
     )
+    # Short ambiguous units (m, ft, in): require whitespace separator
+    answer = re.sub(r"(\d)\s+(?:m|ft|in)\b\.?$", r"\1", answer)
     # Normalize whitespace
     answer = " ".join(answer.split())
     return answer
